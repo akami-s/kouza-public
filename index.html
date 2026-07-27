@@ -132,7 +132,7 @@ footer{margin-top:28px;color:var(--muted);font-size:12px;text-align:center}
 
 <header>
   <h1>講座用 市況ダッシュボード</h1>
-  <div class="meta">データ最終日: <span id="lastDate"></span>　｜　生成: 2026-07-27 12:39　｜　サーバー不要（このファイル単体で動作）</div>
+  <div class="meta">データ最終日: <span id="lastDate"></span>　｜　生成: 2026-07-27 13:22　｜　サーバー不要（このファイル単体で動作）</div>
   <div class="controls">
     <span>前回講義日</span> <select id="prevSel"></select>
     <span>→ 今回</span> <select id="currSel"></select>
@@ -422,6 +422,26 @@ function renderMain(){
   }
   $("mainTable").innerHTML=html+"</tbody>";
   renderDecomp();
+  updateSummaryNote();
+}
+
+/* サマリーは生成時の期間について書かれている。画面上で期間を変えたら食い違いを明示する。
+   （サマリーが無い場合は何も足さない＝.summary:empty の非表示を壊さない） */
+var sumEl = $("summarySec");
+var sumNote = null;
+if(sumEl && sumEl.textContent.trim().length > 0){
+  sumNote = document.createElement("p");
+  sumNote.className = "note";
+  sumNote.style.display = "none";
+  sumEl.appendChild(sumNote);
+}
+function updateSummaryNote(){
+  if(!sumNote) return;
+  const d = P.defaults;
+  if(state.ip === d.prevIdx && state.ic === d.currIdx){ sumNote.style.display = "none"; return; }
+  sumNote.innerHTML = `⚠ 上のコメントは <b>${DATES[d.prevIdx]} → ${DATES[d.currIdx]}</b> について書かれたものです。`
+    + `現在表示中の期間（<b>${DATES[state.ip]} → ${DATES[state.ic]}</b>）とは異なるため、以下の数値とは対応していません。`;
+  sumNote.style.display = "block";
 }
 
 /* calcRow は履歴平均も返すよう拡張（テーブル列用） */
