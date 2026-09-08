@@ -99,6 +99,9 @@ table.sim thead tr:first-child th[colspan]{text-align:center;color:var(--ink);fo
   border-bottom:1px solid var(--grid);padding-bottom:5px}
 table.sim thead tr:nth-child(2) th{padding-top:5px;font-weight:400}
 table.sim .grp:not(:last-child){border-right:1px solid var(--grid)}
+table.sim .gaps{text-align:left;font-variant-numeric:normal;white-space:normal;
+  font-size:13px;color:var(--ink2);min-width:210px}
+table.sim .gaps span{font-size:11.5px;margin-left:2px}
 table.sim tbody td{padding:8px 12px;border-bottom:1px solid var(--grid);text-align:right;
   font-variant-numeric:tabular-nums;white-space:nowrap}
 table.sim tbody td:first-child{text-align:left;font-variant-numeric:normal}
@@ -168,7 +171,7 @@ footer{margin-top:28px;color:var(--muted);font-size:12px;text-align:center}
 
 <header>
   <h1>講座用 市況ダッシュボード</h1>
-  <div class="meta">データ最終日: <span id="lastDate"></span>　｜　生成: 2026-09-08 09:01　｜　サーバー不要（このファイル単体で動作）</div>
+  <div class="meta">データ最終日: <span id="lastDate"></span>　｜　生成: 2026-09-08 09:09　｜　サーバー不要（このファイル単体で動作）</div>
   <div class="controls">
     <span>前回講義日</span> <select id="prevSel"></select>
     <span>→ 今回</span> <select id="currSel"></select>
@@ -540,15 +543,22 @@ function renderSimilar(){
   let html=`<thead>
     <tr><th rowspan="2">順位</th><th rowspan="2">期間（${n}営業日）</th>`
     + bench.map(b=>`<th colspan="2" class="grp">${esc(b.label)}</th>`).join("")
-    + `<th colspan="1">局面全体</th></tr>
+    + `<th colspan="2">局面全体（${use.length}資産）</th></tr>
     <tr>` + bench.map(()=>`<th>その間</th><th class="grp">その後1ヶ月</th>`).join("")
-    + `<th>距離（${use.length}資産）</th></tr>
+    + `<th>距離</th><th class="gaps">似ていない点（ズレの大きい順）</th></tr>
     </thead><tbody>`;
 
   // 今回の行（「その後」はまだ存在しないので空欄）
   html += `<tr class="simnow"><td>今回</td><td>${DATES[state.ip]} → ${DATES[state.ic]}</td>`
         + cells(bench.flatMap(b=>[pctChg(S[b.key], state.ip, state.ic), null]))
-        + `<td>—</td></tr>`;
+        + `<td>—</td><td class="gaps">（比較の基準）</td></tr>`;
+
+  /* 距離の内訳: 各資産が距離にどれだけ効いたか。
+     t = (過去の変化率 − 今回の変化率) ÷ その資産のσ。|t| が大きいほど「似ていない点」。 */
+  const gapsFor = j => use.map(a=>{
+      const p=pctChg(S[a], j-n, j);
+      return p==null ? null : {a, t:(p-cur[a])/sd[a]};
+    }).filter(Boolean).sort((x,y)=>Math.abs(y.t)-Math.abs(x.t));
 
   const fwds = bench.map(()=>[]);   // ベンチマークごとの「その後1ヶ月」
   picked.forEach((c,i)=>{
@@ -560,8 +570,13 @@ function renderSimilar(){
       if(fwd!=null) fwds[bi].push(fwd);
       vals.push(within, fwd);
     });
+    const g=gapsFor(c.j);
+    const top3=g.slice(0,3).map(x=>
+      `${esc(x.a)}<span style="color:var(--muted)">${x.t>0?"↑":"↓"}${Math.abs(x.t).toFixed(1)}</span>`).join(" ・ ");
+    const tip=g.map(x=>`${x.a} ${x.t>0?"+":""}${x.t.toFixed(2)}σ`).join(" / ");
     html += `<tr><td>第${i+1}位</td><td>${DATES[c.j-n]} → ${DATES[c.j]}</td>`
-          + cells(vals) + `<td>${c.dist.toFixed(2)}</td></tr>`;
+          + cells(vals) + `<td>${c.dist.toFixed(2)}</td>`
+          + `<td class="gaps" title="${esc(tip)}">${top3}</td></tr>`;
   });
   tbl.innerHTML=html+"</tbody>";
 
@@ -587,7 +602,10 @@ function renderSimilar(){
     日経平均とS&amp;P500は<b>判定の材料であると同時に、結果を見るための出口</b>として表に出しています
     ── つまり「似ている」の判定は10資産まとめて、「その後どうなったか」は日米それぞれ、という構造です。
     現在の窓と重なる期間、および互いに重なる候補は除いています。
-    <b>同じ数字でも背景の材料は毎回違います。「当時は何が起きていたか」を調べる入口として使ってください。</b>`;
+    右端の<b>「似ていない点」</b>は、その距離にいちばん効いた資産の順で、
+    ↑↓と数字は「今回と比べて何σ上/下だったか」（マウスを乗せると全${use.length}資産の内訳が出ます）。
+    <b>距離が近い＝全部似ている、ではありません。どこが似ていて、どこが違うのかまで見てください。</b>
+    同じ数字でも背景の材料は毎回違います。「当時は何が起きていたか」を調べる入口として使ってください。`;
 }
 
 /* ========== 横棒コンポーネント ========== */
