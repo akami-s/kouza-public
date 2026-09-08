@@ -168,7 +168,7 @@ footer{margin-top:28px;color:var(--muted);font-size:12px;text-align:center}
 
 <header>
   <h1>講座用 市況ダッシュボード</h1>
-  <div class="meta">データ最終日: <span id="lastDate"></span>　｜　生成: 2026-09-08 08:51　｜　サーバー不要（このファイル単体で動作）</div>
+  <div class="meta">データ最終日: <span id="lastDate"></span>　｜　生成: 2026-09-08 09:01　｜　サーバー不要（このファイル単体で動作）</div>
   <div class="controls">
     <span>前回講義日</span> <select id="prevSel"></select>
     <span>→ 今回</span> <select id="currSel"></select>
@@ -540,8 +540,9 @@ function renderSimilar(){
   let html=`<thead>
     <tr><th rowspan="2">順位</th><th rowspan="2">期間（${n}営業日）</th>`
     + bench.map(b=>`<th colspan="2" class="grp">${esc(b.label)}</th>`).join("")
-    + `<th rowspan="2">距離</th></tr>
-    <tr>` + bench.map(()=>`<th>その間</th><th class="grp">その後1ヶ月</th>`).join("") + `</tr>
+    + `<th colspan="1">局面全体</th></tr>
+    <tr>` + bench.map(()=>`<th>その間</th><th class="grp">その後1ヶ月</th>`).join("")
+    + `<th>距離（${use.length}資産）</th></tr>
     </thead><tbody>`;
 
   // 今回の行（「その後」はまだ存在しないので空欄）
@@ -579,9 +580,12 @@ function renderSimilar(){
   } else {
     sum.innerHTML = `似た局面は見つかりましたが、その後1ヶ月ぶんのデータがまだありません。`;
   }
-  note.innerHTML = `比較に使った資産：${use.map(esc).join("・")}（${use.length}種）。
-    各資産の${n}営業日変化率を、その資産自身の${n}日変化率の標準偏差で割って揃えたうえで距離を測っています
-    （＝値動きの大きい資産に引きずられないようにするため）。距離0が完全一致。
+  note.innerHTML = `<b>距離は「局面全体」に対して1つだけです（指数ごとには出ません）。</b>
+    ${use.map(esc).join("・")}の${use.length}資産の${n}営業日変化率を1本のベクトルとみなし、
+    今回のベクトルと過去の各時点のベクトルとの距離を測っています。各資産の変化率は、
+    その資産自身の${n}日変化率の標準偏差で割って揃えてあります（＝値動きの大きい資産に引きずられないため）。距離0が完全一致。
+    日経平均とS&amp;P500は<b>判定の材料であると同時に、結果を見るための出口</b>として表に出しています
+    ── つまり「似ている」の判定は10資産まとめて、「その後どうなったか」は日米それぞれ、という構造です。
     現在の窓と重なる期間、および互いに重なる候補は除いています。
     <b>同じ数字でも背景の材料は毎回違います。「当時は何が起きていたか」を調べる入口として使ってください。</b>`;
 }
