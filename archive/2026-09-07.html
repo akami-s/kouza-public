@@ -102,6 +102,14 @@ table.sim .grp:not(:last-child){border-right:1px solid var(--grid)}
 table.sim .gaps{text-align:left;font-variant-numeric:normal;white-space:normal;
   font-size:13px;color:var(--ink2);min-width:210px}
 table.sim .gaps span{font-size:11.5px;margin-left:2px}
+.factors{background:var(--page);border:1px solid var(--border);border-radius:10px;
+  padding:12px 16px;margin-top:12px;font-size:13.5px}
+.factors .fchd{font-size:12.5px;color:var(--muted);margin-bottom:7px}
+.factors .frow{display:flex;flex-wrap:wrap;gap:4px 12px;align-items:baseline;
+  padding:4px 0;border-top:1px solid var(--grid)}
+.factors .frow:first-of-type{border-top:none}
+.factors .fshare{font-size:12px;color:var(--muted);min-width:82px}
+.factors .fload{color:var(--ink2)}
 table.sim tbody td{padding:8px 12px;border-bottom:1px solid var(--grid);text-align:right;
   font-variant-numeric:tabular-nums;white-space:nowrap}
 table.sim tbody td:first-child{text-align:left;font-variant-numeric:normal}
@@ -171,7 +179,7 @@ footer{margin-top:28px;color:var(--muted);font-size:12px;text-align:center}
 
 <header>
   <h1>講座用 市況ダッシュボード</h1>
-  <div class="meta">データ最終日: <span id="lastDate"></span>　｜　生成: 2026-09-08 09:09　｜　サーバー不要（このファイル単体で動作）</div>
+  <div class="meta">データ最終日: <span id="lastDate"></span>　｜　生成: 2026-09-08 09:22　｜　サーバー不要（このファイル単体で動作）</div>
   <div class="controls">
     <span>前回講義日</span> <select id="prevSel"></select>
     <span>→ 今回</span> <select id="currSel"></select>
@@ -241,6 +249,12 @@ footer{margin-top:28px;color:var(--muted);font-size:12px;text-align:center}
 
 <section class="card">
   <h2>類似局面検索 — 今回と似た動きをした過去を探す</h2>
+  <div class="controls" id="simModes">
+    <span style="color:var(--muted);font-size:13px">距離の測り方:</span>
+    <button class="chip simmode active" data-mode="sigma">① 資産ごとにσで揃える</button>
+    <button class="chip simmode" data-mode="pca">② PCAで因子に畳む</button>
+  </div>
+  <div class="factors" id="simFactors" style="display:none"></div>
   <div class="simwrap"><table class="sim" id="simTable"></table></div>
   <div class="simsum" id="simSummary"></div>
   <p class="note" id="simNote"></p>
@@ -356,6 +370,7 @@ function calcRow(name, ip, ic){
 /* ========== 状態 ========== */
 const state = {
   ip: P.defaults.prevIdx, ic: P.defaults.currIdx,
+  simMode: "sigma",                       // "sigma" | "pca"（類似局面の距離の測り方）
   ts: {sel:["Nikkei"], cat:"株価指数", startIdx:null, endIdx:null, norm:false, presetDays:90},
 };
 
@@ -490,13 +505,55 @@ function median(a){
   const s=[...a].sort((x,y)=>x-y), m=s.length>>1;
   return s.length%2 ? s[m] : (s[m-1]+s[m])/2;
 }
+/* --- 対称行列の固有値分解（Jacobi法）。10×10なので自前実装で十分速い --- */
+function jacobiEigen(Ain, sweeps=60){
+  const m=Ain.length, A=Ain.map(r=>r.slice());
+  const V=Array.from({length:m},(_,i)=>Array.from({length:m},(_,j)=>i===j?1:0));
+  for(let s=0;s<sweeps;s++){
+    let off=0;
+    for(let i=0;i<m;i++) for(let j=i+1;j<m;j++) off+=A[i][j]*A[i][j];
+    if(off<1e-14) break;
+    for(let p=0;p<m;p++) for(let q=p+1;q<m;q++){
+      if(Math.abs(A[p][q])<1e-15) continue;
+      const th=(A[q][q]-A[p][p])/(2*A[p][q]);
+      const t=(th>=0?1:-1)/(Math.abs(th)+Math.sqrt(th*th+1));
+      const c=1/Math.sqrt(t*t+1), sn=t*c;
+      for(let k=0;k<m;k++){ const a=A[k][p], b=A[k][q]; A[k][p]=c*a-sn*b; A[k][q]=sn*a+c*b; }
+      for(let k=0;k<m;k++){ const a=A[p][k], b=A[q][k]; A[p][k]=c*a-sn*b; A[q][k]=sn*a+c*b; }
+      for(let k=0;k<m;k++){ const a=V[k][p], b=V[k][q]; V[k][p]=c*a-sn*b; V[k][q]=sn*a+c*b; }
+    }
+  }
+  const vals=A.map((r,i)=>r[i]);
+  const ord=vals.map((_,i)=>i).sort((a,b)=>vals[b]-vals[a]);
+  return { values: ord.map(i=>vals[i]),
+           vectors: ord.map(i=>V.map(row=>row[i])) };   // vectors[k][asset]
+}
+
+/* --- PCAモデル: 相関行列を固有分解し、寄与率80%までの因子を残す ---
+   残した因子は sqrt(固有値) で割って白色化する（＝因子ごとに重みを揃える）。
+   これで「株式が4資産あるので4票入る」二重計上が消える。 */
+function buildPCA(Z, m){
+  const R=Z.length;
+  const C=Array.from({length:m},()=>new Array(m).fill(0));
+  for(const z of Z) for(let i=0;i<m;i++) for(let j=i;j<m;j++) C[i][j]+=z[i]*z[j];
+  for(let i=0;i<m;i++) for(let j=i;j<m;j++){ const v=C[i][j]/(R-1); C[i][j]=v; C[j][i]=v; }
+  const {values, vectors}=jacobiEigen(C);
+  const tot=values.reduce((a,b)=>a+Math.max(b,0),0) || 1;
+  let cum=0, k=0;
+  while(k<m && cum/tot<0.80){ cum+=Math.max(values[k],0); k++; }
+  k=Math.max(2, Math.min(k, 5, m));
+  return {values, vectors, tot, k};
+}
+const proj=(z,vec)=>vec.reduce((s,w,i)=>s+w*z[i],0);
+
 function renderSimilar(){
   const tbl=$("simTable"), sum=$("simSummary"), note=$("simNote");
   const n=state.ic-state.ip;
   if(n<=0){ tbl.innerHTML=""; sum.innerHTML=""; note.textContent=""; return; }
+  const pcaMode = state.simMode==="pca";
 
-  // 各資産: 今回のN日変化率と、N日変化率の全期間標準偏差
-  const use=[], cur={}, sd={};
+  // 各資産: 今回のN日変化率と、N日変化率の全期間の平均・標準偏差
+  const use=[], cur={}, sd={}, mean={};
   for(const a of SIM_ASSETS){
     const s=S[a]; if(!s) continue;
     const c=pctChg(s, state.ip, state.ic); if(c==null) continue;
@@ -505,25 +562,51 @@ function renderSimilar(){
     if(cnt<2) continue;
     const m=sum1/cnt, v=(sum2-cnt*m*m)/(cnt-1);
     if(!(v>0)) continue;
-    use.push(a); cur[a]=c; sd[a]=Math.sqrt(v);
+    use.push(a); cur[a]=c; mean[a]=m; sd[a]=Math.sqrt(v);
   }
   if(use.length<3){
     tbl.innerHTML=""; sum.innerHTML="";
     note.textContent="比較に使える資産が足りないため、類似局面を計算できません。";
     return;
   }
+  const M=use.length;
 
-  // 全ての過去窓との距離（現在窓と重なるものは除く）
-  const cands=[];
+  // 過去の全窓を標準化ベクトルにする（PCAの学習データも兼ねる）
+  const Z=[], jIdx=[];
   for(let j=n;j<DATES.length;j++){
-    if(Math.abs(j-state.ic)<n) continue;
-    let d2=0, ok=true;
+    const z=[]; let ok=true;
     for(const a of use){
       const p=pctChg(S[a], j-n, j);
       if(p==null){ ok=false; break; }
-      const t=(p-cur[a])/sd[a]; d2+=t*t;
+      z.push((p-mean[a])/sd[a]);
     }
-    if(ok) cands.push({j, dist:Math.sqrt(d2/use.length)});
+    if(ok){ Z.push(z); jIdx.push(j); }
+  }
+  const zCur=use.map(a=>(cur[a]-mean[a])/sd[a]);
+
+  let pca=null, sCur=null;
+  if(pcaMode){
+    pca=buildPCA(Z, M);
+    sCur=pca.vectors.slice(0,pca.k).map((v,k)=>
+      proj(zCur,v)/Math.sqrt(Math.max(pca.values[k],1e-9)));
+  }
+
+  // 距離（現在窓と重なるものは除く）
+  const cands=[];
+  for(let r=0;r<Z.length;r++){
+    const j=jIdx[r];
+    if(Math.abs(j-state.ic)<n) continue;
+    let d2=0;
+    if(pcaMode){
+      for(let k=0;k<pca.k;k++){
+        const t=proj(Z[r],pca.vectors[k])/Math.sqrt(Math.max(pca.values[k],1e-9))-sCur[k];
+        d2+=t*t;
+      }
+      cands.push({j, dist:Math.sqrt(d2/pca.k)});
+    } else {
+      for(let i=0;i<M;i++){ const t=Z[r][i]-zCur[i]; d2+=t*t; }
+      cands.push({j, dist:Math.sqrt(d2/M)});
+    }
   }
   cands.sort((a,b)=>a.dist-b.dist);
 
@@ -543,7 +626,7 @@ function renderSimilar(){
   let html=`<thead>
     <tr><th rowspan="2">順位</th><th rowspan="2">期間（${n}営業日）</th>`
     + bench.map(b=>`<th colspan="2" class="grp">${esc(b.label)}</th>`).join("")
-    + `<th colspan="2">局面全体（${use.length}資産）</th></tr>
+    + `<th colspan="2">局面全体（${pcaMode?`${pca.k}因子／${M}資産から抽出`:`${M}資産`}）</th></tr>
     <tr>` + bench.map(()=>`<th>その間</th><th class="grp">その後1ヶ月</th>`).join("")
     + `<th>距離</th><th class="gaps">似ていない点（ズレの大きい順）</th></tr>
     </thead><tbody>`;
@@ -553,12 +636,19 @@ function renderSimilar(){
         + cells(bench.flatMap(b=>[pctChg(S[b.key], state.ip, state.ic), null]))
         + `<td>—</td><td class="gaps">（比較の基準）</td></tr>`;
 
-  /* 距離の内訳: 各資産が距離にどれだけ効いたか。
-     t = (過去の変化率 − 今回の変化率) ÷ その資産のσ。|t| が大きいほど「似ていない点」。 */
-  const gapsFor = j => use.map(a=>{
-      const p=pctChg(S[a], j-n, j);
-      return p==null ? null : {a, t:(p-cur[a])/sd[a]};
-    }).filter(Boolean).sort((x,y)=>Math.abs(y.t)-Math.abs(x.t));
+  /* 距離の内訳。σモードは「資産ごと」、PCAモードは「因子ごと」のズレを返す。 */
+  const rowOf = new Map(jIdx.map((j,r)=>[j,r]));
+  const gapsFor = j => {
+    const r=rowOf.get(j);
+    if(pcaMode){
+      return pca.vectors.slice(0,pca.k).map((v,k)=>({
+        a:`第${k+1}因子`,
+        t: proj(Z[r],v)/Math.sqrt(Math.max(pca.values[k],1e-9)) - sCur[k],
+      })).sort((x,y)=>Math.abs(y.t)-Math.abs(x.t));
+    }
+    return use.map((a,i)=>({a, t: Z[r][i]-zCur[i]}))
+              .sort((x,y)=>Math.abs(y.t)-Math.abs(x.t));
+  };
 
   const fwds = bench.map(()=>[]);   // ベンチマークごとの「その後1ヶ月」
   picked.forEach((c,i)=>{
@@ -595,17 +685,43 @@ function renderSimilar(){
   } else {
     sum.innerHTML = `似た局面は見つかりましたが、その後1ヶ月ぶんのデータがまだありません。`;
   }
-  note.innerHTML = `<b>距離は「局面全体」に対して1つだけです（指数ごとには出ません）。</b>
-    ${use.map(esc).join("・")}の${use.length}資産の${n}営業日変化率を1本のベクトルとみなし、
-    今回のベクトルと過去の各時点のベクトルとの距離を測っています。各資産の変化率は、
-    その資産自身の${n}日変化率の標準偏差で割って揃えてあります（＝値動きの大きい資産に引きずられないため）。距離0が完全一致。
-    日経平均とS&amp;P500は<b>判定の材料であると同時に、結果を見るための出口</b>として表に出しています
-    ── つまり「似ている」の判定は10資産まとめて、「その後どうなったか」は日米それぞれ、という構造です。
+  // 因子の中身（何に強く効いている因子か）を表示する
+  const leg=$("simFactors");
+  if(pcaMode){
+    leg.innerHTML = `<div class="fchd">抽出された因子（${M}資産の相関から。寄与率の高い順に${pca.k}個を使用）</div>`
+      + pca.vectors.slice(0,pca.k).map((v,k)=>{
+          const load=use.map((a,i)=>({a,w:v[i]})).sort((x,y)=>Math.abs(y.w)-Math.abs(x.w)).slice(0,4);
+          const share=(Math.max(pca.values[k],0)/pca.tot*100).toFixed(0);
+          return `<div class="frow"><b>第${k+1}因子</b><span class="fshare">分散の${share}%</span>
+            <span class="fload">${load.map(l=>
+              `${esc(l.a)}<span style="color:var(--muted)">${l.w>0?"+":"−"}${Math.abs(l.w).toFixed(2)}</span>`
+            ).join(" ・ ")}</span></div>`;
+        }).join("");
+    leg.style.display="block";
+  } else { leg.innerHTML=""; leg.style.display="none"; }
+
+  const common = `日経平均とS&amp;P500は<b>判定の材料であると同時に、結果を見るための出口</b>として表に出しています
+    ── つまり「似ている」の判定は${M}資産まとめて、「その後どうなったか」は日米それぞれ、という構造です。
     現在の窓と重なる期間、および互いに重なる候補は除いています。
-    右端の<b>「似ていない点」</b>は、その距離にいちばん効いた資産の順で、
-    ↑↓と数字は「今回と比べて何σ上/下だったか」（マウスを乗せると全${use.length}資産の内訳が出ます）。
     <b>距離が近い＝全部似ている、ではありません。どこが似ていて、どこが違うのかまで見てください。</b>
     同じ数字でも背景の材料は毎回違います。「当時は何が起きていたか」を調べる入口として使ってください。`;
+
+  note.innerHTML = pcaMode
+    ? `<b>PCA（主成分分析）で測っています。</b>${M}資産の${n}営業日変化率は互いに強く相関しており
+       （例: 日経・TOPIX・SOX・S&amp;P500 はほぼ同じ「株のリスクオン/オフ」を測っている）、
+       そのまま距離にすると<b>株式が実質4票を持ち、金やHYGは1票</b>という偏りが生じます。
+       そこで相関行列を固有分解して重複しない<b>${pca.k}個の因子</b>（分散の
+       ${(pca.values.slice(0,pca.k).reduce((a,b)=>a+Math.max(b,0),0)/pca.tot*100).toFixed(0)}%を説明）に畳み、
+       各因子を標準偏差で割って<b>重みを揃えてから</b>距離を測っています。距離0が完全一致。
+       右端の「似ていない点」も<b>因子ごと</b>のズレです（上の一覧で各因子の中身が確認できます）。
+       <b>①と②は距離のものさしが違うので、数字そのものを比べても意味はありません</b>
+       ── 比べるなら「どの過去が選ばれたか」の顔ぶれのほうです。${common}`
+    : `<b>距離は「局面全体」に対して1つだけです（指数ごとには出ません）。</b>
+       ${use.map(esc).join("・")}の${M}資産の${n}営業日変化率を1本のベクトルとみなし、
+       今回のベクトルと過去の各時点のベクトルとの距離を測っています。各資産の変化率は、
+       その資産自身の${n}日変化率の標準偏差で割って揃えてあります（＝値動きの大きい資産に引きずられないため）。距離0が完全一致。
+       右端の<b>「似ていない点」</b>は距離にいちばん効いた資産の順で、
+       ↑↓の数字は「今回と比べて何σ上/下だったか」（マウスを乗せると全${M}資産の内訳が出ます）。${common}`;
 }
 
 /* ========== 横棒コンポーネント ========== */
@@ -893,7 +1009,20 @@ function hideTip(){
   state.ts.sel.forEach((_,si)=>svg.querySelector("#hdot"+si)?.setAttribute("visibility","hidden"));
 }
 
+/* ========== 類似局面: 距離の測り方の切り替え ========== */
+function initSimModes(){
+  document.querySelectorAll(".simmode").forEach(b=>{
+    b.onclick=()=>{
+      document.querySelectorAll(".simmode").forEach(x=>x.classList.remove("active"));
+      b.classList.add("active");
+      state.simMode=b.dataset.mode;
+      renderSimilar();
+    };
+  });
+}
+
 /* ========== 起動 ========== */
+initSimModes();
 initHeader();
 renderAll();
 initTs();
