@@ -179,7 +179,7 @@ footer{margin-top:28px;color:var(--muted);font-size:12px;text-align:center}
 
 <header>
   <h1>講座用 市況ダッシュボード</h1>
-  <div class="meta">データ最終日: <span id="lastDate"></span>　｜　生成: 2026-09-08 09:22　｜　サーバー不要（このファイル単体で動作）</div>
+  <div class="meta">データ最終日: <span id="lastDate"></span>　｜　生成: 2026-09-08 09:49　｜　サーバー不要（このファイル単体で動作）</div>
   <div class="controls">
     <span>前回講義日</span> <select id="prevSel"></select>
     <span>→ 今回</span> <select id="currSel"></select>
@@ -489,7 +489,20 @@ function renderSignals(){
    今回のN営業日の「各資産の変化率」を、その資産のN日変化率の標準偏差で割って正規化し、
    同じ長さの過去の窓すべてとユークリッド距離を測って近いものを並べる。
    さらに「その窓の後の21営業日で日経がどうなったか」を添える。予測ではなく歴史の参照。 */
-const SIM_ASSETS = ["Nikkei","TOPIX","SOX","S&P500","米10年国債","USD/JPY","金","WTI","VIX","HYG"];
+const SIM_ASSETS = ["Nikkei","TOPIX","SOX","S&P500","米10年国債","米国インフレ連動債(TIPS)",
+                    "USD/JPY","金","WTI","VIX","HYG"];
+/* 金利だけは「変化率」ではなく「差（%ポイント）」で測る。理由は2つ:
+   ①4.70→4.78 を +1.7% と書くと、同じ8bpでも水準によって値が変わってしまう（表側は既にbp表示）。
+   ②実質金利(TIPS)は2021〜22年にマイナス圏で、期間中に符号が変わる。比率だと発散・反転して壊れる。 */
+const SIM_DIFF = new Set(COLS.filter(c=>c.cat==="債券").map(c=>c.name));
+function simChg(name, a, b){
+  const s=S[name];
+  if(a<0 || b>=s.length) return null;
+  const x=s[a], y=s[b];
+  if(x==null || y==null) return null;
+  if(SIM_DIFF.has(name)) return y-x;              // %ポイント
+  return x===0 ? null : (y/x-1)*100;              // %
+}
 /* 結果表に出すベンチマーク（日本と米国を並べる）。距離計算そのものは SIM_ASSETS 全体で行う。 */
 const SIM_BENCH = [{key:"Nikkei", label:"日経平均"}, {key:"S&P500", label:"S&P500"}];
 const SIM_FWD = 21;      // その後1ヶ月＝21営業日
@@ -556,9 +569,9 @@ function renderSimilar(){
   const use=[], cur={}, sd={}, mean={};
   for(const a of SIM_ASSETS){
     const s=S[a]; if(!s) continue;
-    const c=pctChg(s, state.ip, state.ic); if(c==null) continue;
+    const c=simChg(a, state.ip, state.ic); if(c==null) continue;
     let sum1=0,sum2=0,cnt=0;
-    for(let i=n;i<s.length;i++){ const p=pctChg(s,i-n,i); if(p==null) continue; sum1+=p; sum2+=p*p; cnt++; }
+    for(let i=n;i<s.length;i++){ const p=simChg(a,i-n,i); if(p==null) continue; sum1+=p; sum2+=p*p; cnt++; }
     if(cnt<2) continue;
     const m=sum1/cnt, v=(sum2-cnt*m*m)/(cnt-1);
     if(!(v>0)) continue;
@@ -576,7 +589,7 @@ function renderSimilar(){
   for(let j=n;j<DATES.length;j++){
     const z=[]; let ok=true;
     for(const a of use){
-      const p=pctChg(S[a], j-n, j);
+      const p=simChg(a, j-n, j);
       if(p==null){ ok=false; break; }
       z.push((p-mean[a])/sd[a]);
     }
@@ -707,7 +720,8 @@ function renderSimilar(){
     同じ数字でも背景の材料は毎回違います。「当時は何が起きていたか」を調べる入口として使ってください。`;
 
   note.innerHTML = pcaMode
-    ? `<b>PCA（主成分分析）で測っています。</b>${M}資産の${n}営業日変化率は互いに強く相関しており
+    ? `<b>PCA（主成分分析）で測っています。</b>${M}資産の${n}営業日の動き
+       （金利だけは変化率でなく「差」。実質金利は符号が変わるため）は互いに強く相関しており
        （例: 日経・TOPIX・SOX・S&amp;P500 はほぼ同じ「株のリスクオン/オフ」を測っている）、
        そのまま距離にすると<b>株式が実質4票を持ち、金やHYGは1票</b>という偏りが生じます。
        そこで相関行列を固有分解して重複しない<b>${pca.k}個の因子</b>（分散の
@@ -717,9 +731,12 @@ function renderSimilar(){
        <b>①と②は距離のものさしが違うので、数字そのものを比べても意味はありません</b>
        ── 比べるなら「どの過去が選ばれたか」の顔ぶれのほうです。${common}`
     : `<b>距離は「局面全体」に対して1つだけです（指数ごとには出ません）。</b>
-       ${use.map(esc).join("・")}の${M}資産の${n}営業日変化率を1本のベクトルとみなし、
-       今回のベクトルと過去の各時点のベクトルとの距離を測っています。各資産の変化率は、
-       その資産自身の${n}日変化率の標準偏差で割って揃えてあります（＝値動きの大きい資産に引きずられないため）。距離0が完全一致。
+       ${use.map(esc).join("・")}の${M}資産の${n}営業日の動きを1本のベクトルとみなし、
+       今回のベクトルと過去の各時点のベクトルとの距離を測っています。各資産の動きは、
+       その資産自身の標準偏差で割って揃えてあります（＝値動きの大きい資産に引きずられないため）。距離0が完全一致。
+       <b>金利（米10年・TIPS実質金利）だけは変化率ではなく「差」で測っています</b>
+       ── 同じ8bpでも水準によって変化率が変わってしまううえ、実質金利は2021〜22年にマイナス圏で、
+       期間中に符号が変わるため比率が使えないからです。
        右端の<b>「似ていない点」</b>は距離にいちばん効いた資産の順で、
        ↑↓の数字は「今回と比べて何σ上/下だったか」（マウスを乗せると全${M}資産の内訳が出ます）。${common}`;
 }
