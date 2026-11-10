@@ -8,11 +8,11 @@
 <style>
 :root{
   color-scheme: light;
-  --page:#eef1f7; --surface:#fdfdff; --panel:#f4f6fb;
-  --ink:#1a1f36; --ink2:#4b5370; --muted:#8892a8;
-  --grid:#e8ecf4; --axis:#c9d0de; --border:#e1e6f0;
+  --page:#ece6da; --surface:#f9f6f0; --panel:#f0ebe0;
+  --ink:#1a1f36; --ink2:#4a4f63; --muted:#8a8778;
+  --grid:#e6e0d4; --axis:#cbc4b5; --border:#e0d9cb;
   --s1:#1a1f36; --s2:#e8a020; --s3:#c94d4a; --s4:#4a6aa0; --s7:#6d5bb0;
-  --ctx:#b4bccb; --gold:#e8a020;
+  --ctx:#b5b0a3; --gold:#e8a020;
   --navy:#1a1f36; --q:#c94d4a; --a:#4a6aa0; --ok:#2f8f5b;
 }
 *{box-sizing:border-box}
@@ -29,11 +29,11 @@ body{margin:0;background:var(--page);color:var(--ink);
 .chap b{display:inline-block;border-radius:1em;padding:.12em .85em;margin-right:.7em;color:#fff;background:var(--navy);letter-spacing:.08em}
 .chap b.q{background:var(--q)} .chap b.a{background:var(--a)}
 .ribbon{display:flex;gap:.35em;font-size:.72em;color:var(--muted)}
-.ribbon span{border:1px solid var(--border);border-radius:.5em;padding:.18em .7em;background:var(--panel);white-space:nowrap}
+.ribbon span{border:1px solid var(--border);border-radius:.5em;padding:.18em .7em;background:#fffefb;white-space:nowrap}
 .ribbon span b{font-weight:700;margin-right:.4em;font-variant-numeric:tabular-nums}
 .ribbon span.on{background:var(--navy);color:#fff;border-color:var(--navy)}
 h1{font-size:1.72em;line-height:1.3;margin:0 0 .25em;letter-spacing:.01em;text-wrap:balance}
-h1 em{font-style:normal;background:linear-gradient(transparent 62%,#f8dc97 62%)}
+h1 em{font-style:normal;background:linear-gradient(transparent 62%,#f3cf75 62%)}
 .lead{color:var(--ink2);font-size:1.02em;margin:0 0 .7em;max-width:62em}
 .lead b,.txt b{color:var(--ink)}
 .body{flex:1;min-height:0;display:flex;gap:2.2%}
@@ -49,8 +49,8 @@ h1 em{font-style:normal;background:linear-gradient(transparent 62%,#f8dc97 62%)}
 .box{background:var(--panel);border:1px solid var(--border);border-radius:.7em;padding:.8em 1em;font-size:.93em;color:var(--ink2)}
 .box h3{margin:0 0 .3em;font-size:1em;color:var(--ink)}
 .box p{margin:0 0 .35em} .box p:last-child{margin:0}
-.box.qb{border-left:.3em solid var(--q)} .box.ab{border-left:.3em solid var(--a);background:#eef2f9}
-.box.term{border-left:.3em solid var(--gold);background:#fff9e8}
+.box.qb{border-left:.3em solid var(--q)} .box.ab{border-left:.3em solid var(--a);background:#fffefb}
+.box.term{border-left:.3em solid var(--gold);background:#fbefcf}
 .tag{display:inline-block;font-size:.76em;font-weight:700;letter-spacing:.1em;margin-bottom:.25em}
 .tag.q{color:var(--q)} .tag.a{color:var(--a)}
 .foot{color:var(--muted);font-size:.72em;margin-top:.7em;line-height:1.5}
@@ -63,7 +63,7 @@ table.t{border-collapse:collapse;width:100%;font-size:.95em}
 table.t th,table.t td{border-bottom:1px solid var(--grid);padding:.5em .8em;text-align:left;vertical-align:middle}
 table.t th{color:var(--muted);font-weight:600;font-size:.84em}
 table.t td.n,table.t th.n{text-align:right;font-variant-numeric:tabular-nums}
-table.t td.hl{background:#fff3c9;font-weight:800}
+table.t td.hl{background:#f7e3a3;font-weight:800}
 table.t td.d{font-weight:700;white-space:nowrap}
 .cards{display:grid;gap:1em}
 .c3{grid-template-columns:repeat(3,1fr)} .c2{grid-template-columns:repeat(2,1fr)} .c4{grid-template-columns:repeat(4,1fr)}
@@ -77,7 +77,7 @@ table.t td.d{font-weight:700;white-space:nowrap}
 .vote button,.pick button{font:inherit;font-size:.92em;font-weight:700;flex:1;padding:.45em .3em;border-radius:.6em;border:1px dashed var(--axis);background:#fff;color:var(--muted);cursor:pointer}
 .vote button.sel,.pick button.sel{border-style:solid;border-color:var(--navy);background:var(--navy);color:#fff}
 .pick{display:flex;gap:.5em;margin-top:.5em}
-.vote button{border:1px solid #d5dae6;background:#e7eaf2;color:#6b7388}
+.vote button{border:1px solid #d3ccbd;background:#e5dfd2;color:#6f695d}
 .vote button:nth-child(1).sel{background:#2f9e5b;border-color:#2f9e5b;color:#fff}
 .vote button:nth-child(2).sel{background:#d93a2b;border-color:#d93a2b;color:#fff}
 [data-my] b{display:inline-block;border-radius:.5em;padding:.1em .7em;color:#fff;font-size:.92em}
@@ -93,7 +93,7 @@ table.t td.d{font-weight:700;white-space:nowrap}
 .rung .v{font-size:1.7em;font-weight:800;font-variant-numeric:tabular-nums}
 .rung .rtag{font-size:.74em;font-weight:800;letter-spacing:.08em;color:var(--muted)}
 .rung.start{background:#fff;border-style:dashed;flex:.85}
-.rung.own{background:#eef2f9;border:.16em solid var(--s1);flex:1.05}
+.rung.own{background:#fffefb;border:.16em solid var(--s1);flex:1.05}
 .rung.own .rtag{color:var(--s1)} .rung.own .v{font-size:2.3em;color:var(--s1)}
 .rung.start .v{margin-top:auto}
 .ladder .rung{padding:.7em .85em;gap:.25em} .ladder .rung .v{font-size:1.55em;line-height:1.2} .ladder .rung.own .v{font-size:2.2em}
@@ -123,9 +123,9 @@ input[type=range]{width:100%;accent-color:var(--navy)}
 .chap .hy{display:inline-flex;gap:.25em;margin-right:.7em;vertical-align:middle}
 .chap .hy i{font-style:normal;letter-spacing:0;width:1.7em;height:1.7em;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;border:1px solid var(--axis);color:var(--muted);background:#fff;font-size:.95em}
 .chap .hy i.on{background:var(--navy);border-color:var(--navy);color:#fff}
-.chap .hy i.done{background:#e1e5ee;border-color:#e1e5ee;color:#6b7388;text-decoration:line-through}
+.chap .hy i.done{background:#e0d9cb;border-color:#e0d9cb;color:#6f695d;text-decoration:line-through}
 .chap .hs{letter-spacing:.02em;color:var(--ink);font-size:1.12em}
-.slide.divider{background:#f1f4fa}
+.slide.divider{background:#f1ece1}
 .dv{flex:1;display:flex;align-items:center;gap:4%;min-height:0}
 .dv .L{flex:0 0 auto;font-size:11em;font-weight:900;line-height:1;color:var(--navy);text-align:center;padding:0 .12em}
 .dv .L small{display:block;font-size:.13em;letter-spacing:.4em;font-weight:800;color:var(--muted);margin-bottom:.5em;padding-left:.4em}
@@ -412,7 +412,7 @@ svg text{font-family:inherit}
   <div class="body col">
     <div class="cards c3">
       <div class="card"><div class="k">逆算した全体の影響</div><div class="big">−40%</div><p>−4% ÷ 0.1</p></div>
-      <div class="card" style="background:#fff3c9"><div class="k">事前に下げてあったはずの分</div><div class="big">−36%</div><p>−40% × 0.9</p></div>
+      <div class="card" style="background:#f7e3a3"><div class="k">事前に下げてあったはずの分</div><div class="big">−36%</div><p>−40% × 0.9</p></div>
       <div class="card" style="background:#fff;border-left:.3em solid var(--q)"><div class="k" style="color:var(--q)">確かめること</div><h3>確率が上がっていった時期に、株価は本当に36%下げていたか</h3><p>計算としては正しい数字です。あとは実際の株価を見るだけです。</p></div>
     </div>
     <div class="jlab hid">判定のしかた</div>
@@ -759,7 +759,7 @@ bars('chBar5',{groups:['均等加重S&P500','S&P500','ナスダック','SOX（�
 (()=>{const o=V.ytd,S=[{n:'S&P500',c:C.SPX,v:o.SPX},{n:'SOX（半導体）',c:C.SOX,v:o.SOX},{n:'エヌビディア',c:C.NVDA,v:o.NVDA,w:3.2,hero:1}];
   legend('lgYtd',S);line('chYtd',{d:o.d,series:S,base:100,two:1,r:175,vf:v=>F.pct(v-100)})})();
 // 6
-(()=>{const o=V.per,S=[{n:'AMD',c:'#cdd3df',v:o.AMD,w:1.8},{n:'ブロードコム',c:'#aab2c2',v:o.AVGO,w:1.8},{n:'TSMC',c:'#8791a6',v:o.TSM,w:1.8},{n:'エヌビディア',c:C.NVDA,v:o.NVDA,w:3.4,hero:1}];
+(()=>{const o=V.per,S=[{n:'AMD',c:'#cfc8ba',v:o.AMD,w:1.8},{n:'ブロードコム',c:'#aea798',v:o.AVGO,w:1.8},{n:'TSMC',c:'#8c8677',v:o.TSM,w:1.8},{n:'エヌビディア',c:C.NVDA,v:o.NVDA,w:3.4,hero:1}];
   legend('lgPer',S);line('chPer',{d:o.d,series:S,min:0,max:65,xyear:1,xskip:4,two:1,r:165,vf:F.x,yf:v=>v+'倍'})})();
 // はしご（11/5の騰落率どうしの引き算。画面の数字で検算できるよう、表示値で計算する）
 (()=>{const d=V.days['2026-11-05'],f=v=>sg(v)+'%',r1=v=>+v.toFixed(1);
@@ -790,7 +790,7 @@ bars('chBar5',{groups:['均等加重S&P500','S&P500','ナスダック','SOX（�
   ev:[{d:'2026-10-29',t:'10/29 報道'},{d:'2026-11-09',t:'11/9 調査発表後',dy:22}]})})();
 // 16
 (()=>{const L=V.layers,z=L.z.own,i9=L.d.indexOf('2026-11-09');$('#z1109').textContent='ふだんの'+Math.abs(z[i9]).toFixed(1)+'倍の下げ';
-  bars('chZ',{groups:L.d.map((d,i)=>i%4==0||i==i9?md(d):''),tipG:L.d.map(md),series:[{n:'固有分',v:z,cs:z.map((v,i)=>i==i9?C.NVDA:'#cdd3df')}],vf:v=>sg(v)+'倍',nolab:1,lab:[i9],bw:22,min:-5.5,max:3,bands:[2,-2],gf:16,lf:21})})();
+  bars('chZ',{groups:L.d.map((d,i)=>i%4==0||i==i9?md(d):''),tipG:L.d.map(md),series:[{n:'固有分',v:z,cs:z.map((v,i)=>i==i9?C.NVDA:'#cfc8ba')}],vf:v=>sg(v)+'倍',nolab:1,lab:[i9],bw:22,min:-5.5,max:3,bands:[2,-2],gf:16,lf:21})})();
 // 17
 (()=>{const o=V.per;line('chRel',{d:o.d,series:[{n:'エヌビディア÷競合',c:C.NVDA,v:o.rel,w:3,hero:1}],base:1,min:.4,max:1.7,xyear:1,xskip:4,vf:v=>v.toFixed(2),yf:v=>v.toFixed(1),r:70,
   ev:[{d:o.d.find(d=>d>='2026-10-29'),t:'10/29 報道'}]})})();
